@@ -7,6 +7,16 @@ import org.apache.commons.validator.routines.UrlValidator
 
 class ValidationService {
 
+    fun validateIfNotBlank(str: String?, name: String, maxLength: Int): Map<String, String> {
+        return if (isBlank(str)) {
+            emptyMap()
+        } else if (str!!.length > maxLength) {
+            mapOf(name to "Please enter a $name with at most $maxLength characters or leave empty.")
+        } else {
+            emptyMap()
+        }
+    }
+
     fun validate(str: String?, name: String, maxLength: Int): Map<String, String> {
         return if (isBlank(str)) {
             mapOf(name to "Please enter a $name.")
@@ -38,9 +48,14 @@ class ValidationService {
                 errors[key] = "Please enter a valid page number or leave empty."
             } else if (reference.statement != null && reference.statement.length > 128) {
                 errors[key] = "Please enter a statement with at most 128 characters or leave empty."
-            } else if (reference.url != null && !UrlValidator.getInstance().isValid(reference.url)) {
+            } else if (reference.url != null &&
+                !(UrlValidator.getInstance().isValid(reference.url) ||
+                        (reference.url.startsWith("https://en.wikipedia.org/wiki") && UrlValidator.getInstance().isValid(
+                            reference.url.replace("–", "%E2%80%93")
+                        )))
+            ) {
                 errors[key] = "Unable to parse url."
-            } else if (reference.url != null && reference.url.length > 128) {
+            } else if (reference.url != null && reference.url.length > 256) {
                 errors[key] = "Unable to parse url."
             } else if (isNotBlank(reference.arxivId) && reference.url == null) {
                 errors[key] = "Unable to parse url."

@@ -8,9 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.google.inject.AbstractModule
+import com.google.inject.Singleton
 import com.google.inject.name.Names
 import model.enums.Environment
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import service.ComputationService
 import java.net.URL
 
 class ApplicationModule(private val configuration: SpaceConfiguration) : AbstractModule() {
@@ -26,6 +28,7 @@ class ApplicationModule(private val configuration: SpaceConfiguration) : Abstrac
         bind(JWTVerifier::class.java).toInstance(JWT.require(algorithm).build())
         bind(BCryptPasswordEncoder::class.java).toInstance(BCryptPasswordEncoder(12))
         bind(URL::class.java).annotatedWith(Names.named("serverUrl")).toInstance(URL(configuration.serverUrl))
+        bind(ComputationService::class.java).`in`(Singleton::class.java)
     }
 
 }

@@ -5,8 +5,8 @@ import dao.InviteDao
 import dao.UserDao
 import model.database.UserData
 import model.rest.ErrorDto
-import model.rest.PostLoginDto
-import model.rest.PostSignupDto
+import model.rest.post.PostLoginDto
+import model.rest.post.PostSignupDto
 import org.apache.commons.lang.StringUtils
 import org.apache.commons.lang.StringUtils.isBlank
 import org.apache.commons.validator.routines.EmailValidator

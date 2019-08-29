@@ -1,13 +1,8 @@
 package mapper
 
-import model.database.LinkData
-import model.database.PropertyData
-import model.database.ReferenceData
-import model.database.SpaceData
-import model.rest.LinkDto
-import model.rest.PropertyDto
-import model.rest.ReferenceDto
-import model.rest.SpaceDto
+import model.database.*
+import model.rest.*
+import java.util.*
 
 class ToDtoMapper {
 
@@ -44,6 +39,40 @@ class ToDtoMapper {
             field = link.field,
             created = link.created,
             updated = link.created,
+            references = toReferenceDtoList(references)
+        )
+    }
+
+    fun toTheoremDto(
+        theorem: TheoremData,
+        conditions: List<ConditionData>,
+        conclusions: List<ConclusionData>,
+        references: List<ReferenceData>,
+        properties: Map<UUID, PropertyData>
+    ): TheoremDto {
+        val conditionDtoList = conditions.map {
+            ConditionDto(
+                id = it.id,
+                propertyId = it.propertyId,
+                propertyName = properties[it.propertyId]?.name.orEmpty(),
+                field = it.field
+            )
+        }
+        val conclusionDtoList = conclusions.map {
+            ConclusionDto(
+                id = it.id,
+                propertyId = it.propertyId,
+                propertyName = properties[it.propertyId]?.name.orEmpty(),
+                field = it.field
+            )
+        }
+        return TheoremDto(
+            id = theorem.id,
+            name = theorem.name,
+            created = theorem.created,
+            updated = theorem.updated,
+            conditions = conditionDtoList,
+            conclusions = conclusionDtoList,
             references = toReferenceDtoList(references)
         )
     }

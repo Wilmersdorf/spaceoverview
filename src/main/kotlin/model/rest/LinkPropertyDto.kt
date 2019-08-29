@@ -1,6 +1,11 @@
 package model.rest
 
-import model.database.LinkData
 import model.database.PropertyData
+import model.enums.FieldLink
 
-data class LinkPropertyDto(val link: LinkData?, val property: PropertyData)
+data class LinkPropertyDto(
+    val field: FieldLink?,
+    val linked: Boolean?,
+    val computed: Boolean?,
+    val property: PropertyData
+)

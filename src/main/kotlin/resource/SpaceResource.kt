@@ -1,10 +1,7 @@
 package resource
 
 import com.google.inject.Inject
-import dao.LinkDao
-import dao.PropertyDao
-import dao.ReferenceDao
-import dao.SpaceDao
+import dao.*
 import io.dropwizard.auth.Auth
 import mapper.ToDataMapper
 import mapper.ToDtoMapper
@@ -13,7 +10,13 @@ import model.database.LinkData
 import model.database.SpaceData
 import model.enums.Field
 import model.enums.FieldLink
-import model.rest.*
+import model.rest.ErrorDto
+import model.rest.LinkPropertyDto
+import model.rest.LinkSpacePropertyDto
+import model.rest.post.PostLinkDto
+import model.rest.post.PostSpaceDto
+import service.ComputationService
+import service.FieldService
 import service.ValidationService
 import java.time.LocalDateTime
 import java.util.*
@@ -32,7 +35,10 @@ class SpaceResource @Inject constructor(
     private val referenceDao: ReferenceDao,
     private val toDtoMapper: ToDtoMapper,
     private val toDataMapper: ToDataMapper,
-    private val validationService: ValidationService
+    private val validationService: ValidationService,
+    private val computationDao: ComputationDao,
+    private val fieldService: FieldService,
+    private val computationService: ComputationService
 ) {
 
     private val realSet = setOf(FieldLink.REAL, FieldLink.NOT_REAL)
@@ -52,7 +58,7 @@ class SpaceResource @Inject constructor(
 
     @GET
     fun get(): Response {
-        val spaces = spaceDao.getAll().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, { it.symbol }))
+        val spaces = spaceDao.getAll().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.symbol })
         return Response.ok(spaces).build()
     }
 
@@ -94,6 +100,7 @@ class SpaceResource @Inject constructor(
             }
             references.forEach(referenceDao::create)
             val spaceDto = toDtoMapper.toSpaceDto(space, references)
+            computationService.compute()
             Response.ok(spaceDto).build()
         }
     }
@@ -118,7 +125,7 @@ class SpaceResource @Inject constructor(
                 norm = postSpaceDto.norm!!.trim(),
                 description = postSpaceDto.description!!.trim(),
                 field = postSpaceDto.field,
-                updated = LocalDateTime.now()
+                updated = now
             )
             val references = toDataMapper.toSpaceReferences(id, now, postSpaceDto.references)
             try {
@@ -130,6 +137,7 @@ class SpaceResource @Inject constructor(
             referenceDao.deleteBySpaceId(id)
             references.forEach(referenceDao::create)
             val spaceDto = toDtoMapper.toSpaceDto(spaceUpdate, references)
+            computationService.compute()
             Response.ok(spaceDto).build()
         }
     }
@@ -149,6 +157,7 @@ class SpaceResource @Inject constructor(
             } else {
                 referenceDao.deleteBySpaceId(id)
                 spaceDao.delete(id)
+                computationService.compute()
                 Response.ok().build()
             }
         }
@@ -156,33 +165,52 @@ class SpaceResource @Inject constructor(
 
     @Path("/{spaceId}/property")
     @GET
-    fun getProperties(@PathParam("spaceId") spaceId: UUID, @QueryParam("unlinked") unlinked: Boolean):
-            Response {
+    fun getProperties(
+        @PathParam("spaceId") spaceId: UUID,
+        @QueryParam("unlinked") unlinked: Boolean
+    ): Response {
         val space = spaceDao.get(spaceId)
         return if (space == null) {
             Response.status(Response.Status.NOT_FOUND).build()
         } else if (!unlinked) {
-            val linkPropertyList = linkDao.getBySpaceId(spaceId).map {
-                val property = propertyDao.get(it.propertyId)!!
-                LinkPropertyDto(it, property)
-            }.sortedBy { it.property.name }
-            Response.ok(linkPropertyList).build()
+            val linkedProperties = getLinkedProperties(spaceId)
+            Response.ok(linkedProperties).build()
         } else {
-            val linkedPropertyIds = linkDao.getBySpaceId(spaceId).map { it.propertyId }.toSet()
-            val allowedFields = if (space.field == Field.REAL) {
-                setOf(Field.REAL, Field.REAL_OR_COMPLEX)
-            } else if (space.field == Field.COMPLEX) {
-                setOf(Field.COMPLEX, Field.REAL_OR_COMPLEX)
-            } else {
-                setOf(Field.REAL, Field.COMPLEX, Field.REAL_OR_COMPLEX)
-            }
-            val allowedProperties = propertyDao.getAll()
-                .filter { !linkedPropertyIds.contains(it.id) }
-                .filter { allowedFields.contains(it.field) }
-                .map { LinkPropertyDto(null, it) }
-                .sortedBy { it.property.name }
-            Response.ok(allowedProperties).build()
+            val unlinkedProperties = getUnlinkedProperties(space)
+            Response.ok(unlinkedProperties).build()
         }
+    }
+
+    private fun getLinkedProperties(spaceId: UUID): List<LinkPropertyDto> {
+        val linksByPropertyId = linkDao.getBySpaceId(spaceId).associateBy { it.propertyId }
+        val computationsByPropertyId = computationDao.getBySpaceId(spaceId).groupBy { it.propertyId }
+        val propertiesIds = linksByPropertyId.keys.union(computationsByPropertyId.keys)
+        return propertiesIds.map {
+            val link = linksByPropertyId[it]
+            val computations = computationsByPropertyId[it].orEmpty()
+            val field = fieldService.getCombinedField(link, computations)
+            val property = propertyDao.get(it)!!
+            val linked = link != null
+            val computed = computations.isNotEmpty()
+            LinkPropertyDto(field, linked, computed, property)
+        }.sortedBy { it.property.name }
+    }
+
+
+    private fun getUnlinkedProperties(space: SpaceData): List<LinkPropertyDto> {
+        val linkedPropertyIds = linkDao.getBySpaceId(space.id).map { it.propertyId }.toSet()
+        val allowedFields = if (space.field == Field.REAL) {
+            setOf(Field.REAL, Field.REAL_OR_COMPLEX)
+        } else if (space.field == Field.COMPLEX) {
+            setOf(Field.COMPLEX, Field.REAL_OR_COMPLEX)
+        } else {
+            setOf(Field.REAL, Field.COMPLEX, Field.REAL_OR_COMPLEX)
+        }
+        return propertyDao.getAll()
+            .filter { !linkedPropertyIds.contains(it.id) }
+            .filter { allowedFields.contains(it.field) }
+            .map { LinkPropertyDto(null, null, null, it) }
+            .sortedBy { it.property.name }
     }
 
     @Path("/{spaceId}/property/{propertyId}")
@@ -193,17 +221,23 @@ class SpaceResource @Inject constructor(
     ): Response {
         val space = spaceDao.get(spaceId)
         val property = propertyDao.get(propertyId)
+        val computations = computationDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
         val link = linkDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
-        return if (space == null || property == null || link == null) {
+        return if (space == null || property == null || (computations.isEmpty() && link == null)) {
             Response.status(Response.Status.NOT_FOUND).build()
         } else {
             val spaceReferences = referenceDao.getBySpaceId(spaceId)
-            val propertyReferences = referenceDao.getByPropertyId(propertyId)
-            val linkReferences = referenceDao.getByLinkId(link.id)
             val spaceDto = toDtoMapper.toSpaceDto(space, spaceReferences)
+            val propertyReferences = referenceDao.getByPropertyId(propertyId)
             val propertyDto = toDtoMapper.toPropertyDto(property, propertyReferences)
-            val linkDto = toDtoMapper.toLinkDto(link, linkReferences)
-            val linkProperty = LinkSpacePropertyDto(spaceDto, linkDto, propertyDto)
+            val linkDto = if (link != null) {
+                val linkReferences = referenceDao.getByLinkId(link.id)
+                toDtoMapper.toLinkDto(link, linkReferences)
+            } else {
+                null
+            }
+            val field = fieldService.getCombinedField(link, computations)
+            val linkProperty = LinkSpacePropertyDto(spaceDto, field, propertyDto, linkDto, computations)
             Response.ok(linkProperty).build()
         }
     }
@@ -259,6 +293,7 @@ class SpaceResource @Inject constructor(
                     referenceDao.deleteByLinkId(link.id)
                     references.forEach(referenceDao::create)
                     val linkDto = toDtoMapper.toLinkDto(link, references)
+                    computationService.compute()
                     return Response.ok(linkDto).build()
                 }
             }
@@ -278,11 +313,12 @@ class SpaceResource @Inject constructor(
         } else {
             referenceDao.deleteByLinkId(link.id)
             linkDao.delete(link.id)
+            computationService.compute()
             Response.ok().build()
         }
     }
 
-    private fun validate(postSpaceDto: PostSpaceDto): HashMap<String, String> {
+    private fun validate(postSpaceDto: PostSpaceDto): Map<String, String> {
         val errors = HashMap<String, String>()
         errors.putAll(validationService.validate(postSpaceDto.description, "description", 1024))
         errors.putAll(validationService.validate(postSpaceDto.symbol, "symbol", 128))

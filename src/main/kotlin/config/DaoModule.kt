@@ -13,6 +13,10 @@ class DaoModule(private val jdbi: Jdbi) : AbstractModule() {
         bindDao(ReferenceDao::class.java)
         bindDao(UserDao::class.java)
         bindDao(InviteDao::class.java)
+        bindDao(TheoremDao::class.java)
+        bindDao(ConditionDao::class.java)
+        bindDao(ConclusionDao::class.java)
+        bindDao(ComputationDao::class.java)
     }
 
     private fun <T> bindDao(clazz: Class<T>) {

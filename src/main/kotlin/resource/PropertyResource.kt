@@ -1,10 +1,7 @@
 package resource
 
 import com.google.inject.Inject
-import dao.LinkDao
-import dao.PropertyDao
-import dao.ReferenceDao
-import dao.SpaceDao
+import dao.*
 import io.dropwizard.auth.Auth
 import mapper.ToDataMapper
 import mapper.ToDtoMapper
@@ -12,7 +9,9 @@ import model.User
 import model.database.PropertyData
 import model.rest.ErrorDto
 import model.rest.LinkSpaceDto
-import model.rest.PostPropertyDto
+import model.rest.post.PostPropertyDto
+import service.ComputationService
+import service.FieldService
 import service.ValidationService
 import java.time.LocalDateTime
 import java.util.*
@@ -31,12 +30,17 @@ class PropertyResource @Inject constructor(
     private val referenceDao: ReferenceDao,
     private val toDtoMapper: ToDtoMapper,
     private val toDataMapper: ToDataMapper,
-    private val validationService: ValidationService
+    private val validationService: ValidationService,
+    private val conditionDao: ConditionDao,
+    private val conclusionDao: ConclusionDao,
+    private val computationDao: ComputationDao,
+    private val fieldService: FieldService,
+    private val computationService: ComputationService
 ) {
 
     @GET
     fun get(): Response {
-        val properties = propertyDao.getAll().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, { it.name }))
+        val properties = propertyDao.getAll().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name })
         return Response.ok(properties).build()
     }
 
@@ -77,6 +81,7 @@ class PropertyResource @Inject constructor(
             }
             references.forEach(referenceDao::create)
             val propertyDto = toDtoMapper.toPropertyDto(property, references)
+            computationService.compute()
             Response.ok(propertyDto).build()
         }
     }
@@ -100,7 +105,7 @@ class PropertyResource @Inject constructor(
                 name = postPropertyDto.name!!.trim(),
                 description = postPropertyDto.description!!.trim(),
                 field = postPropertyDto.field,
-                updated = LocalDateTime.now()
+                updated = now
             )
             val references = toDataMapper.toPropertyReferences(id, now, postPropertyDto.references)
             try {
@@ -112,6 +117,7 @@ class PropertyResource @Inject constructor(
             referenceDao.deleteByPropertyId(id)
             references.forEach(referenceDao::create)
             val propertyDto = toDtoMapper.toPropertyDto(propertyUpdate, references)
+            computationService.compute()
             Response.ok(propertyDto).build()
         }
     }
@@ -129,9 +135,18 @@ class PropertyResource @Inject constructor(
                     mapOf("general" to "Unable to delete property, because it is linked to spaces.")
                 return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
             } else {
-                referenceDao.deleteByPropertyId(id)
-                propertyDao.delete(id)
-                Response.ok().build()
+                val conditions = conditionDao.getByPropertyId(id)
+                val conclusions = conclusionDao.getByPropertyId(id)
+                if (conditions.isNotEmpty() || conclusions.isNotEmpty()) {
+                    val errors =
+                        mapOf("general" to "Unable to delete property, because it is used in theorems.")
+                    return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+                } else {
+                    referenceDao.deleteByPropertyId(id)
+                    propertyDao.delete(id)
+                    computationService.compute()
+                    Response.ok().build()
+                }
             }
         }
     }
@@ -143,15 +158,23 @@ class PropertyResource @Inject constructor(
         return if (property == null) {
             Response.status(Response.Status.NOT_FOUND).build()
         } else {
-            val linkSpaceList = linkDao.getByPropertyId(id).map {
-                val space = spaceDao.get(it.spaceId)!!
-                LinkSpaceDto(it, space)
-            }
-            Response.ok(linkSpaceList).build()
+            val linksBySpaceId = linkDao.getByPropertyId(id).associateBy { it.spaceId }
+            val computationsBySpaceId = computationDao.getByPropertyId(id).groupBy { it.spaceId }
+            val spaceIds = linksBySpaceId.keys.union(computationsBySpaceId.keys)
+            val linkedSpaces = spaceIds.map {
+                val link = linksBySpaceId[it]
+                val computations = computationsBySpaceId[it].orEmpty()
+                val field = fieldService.getCombinedField(link, computations)
+                val space = spaceDao.get(it)!!
+                val linked = link != null
+                val computed = computations.isNotEmpty()
+                LinkSpaceDto(field, linked, computed, space)
+            }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.space.symbol })
+            Response.ok(linkedSpaces).build()
         }
     }
 
-    private fun validate(postPropertyDto: PostPropertyDto): HashMap<String, String> {
+    private fun validate(postPropertyDto: PostPropertyDto): Map<String, String> {
         val errors = HashMap<String, String>()
         errors.putAll(validationService.validate(postPropertyDto.description, "description", 1024))
         errors.putAll(validationService.validate(postPropertyDto.name, "name", 128))

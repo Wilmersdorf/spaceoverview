@@ -8,6 +8,7 @@ data class ReferenceData(
     val spaceId: UUID?,
     val propertyId: UUID?,
     val linkId: UUID?,
+    val theoremId: UUID?,
     val title: String,
     val url: String?,
     val arxivId: String?,

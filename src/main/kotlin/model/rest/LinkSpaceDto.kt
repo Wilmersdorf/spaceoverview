@@ -1,6 +1,6 @@
 package model.rest
 
-import model.database.LinkData
 import model.database.SpaceData
+import model.enums.FieldLink
 
-data class LinkSpaceDto(val link: LinkData, val space: SpaceData)
+data class LinkSpaceDto(val field: FieldLink, val linked: Boolean, val computed: Boolean, val space: SpaceData)

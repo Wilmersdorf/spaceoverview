@@ -26,10 +26,7 @@ import org.glassfish.jersey.logging.LoggingFeature
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature
 import org.jdbi.v3.postgres.PeriodArgumentFactory
 import org.jdbi.v3.postgres.UUIDArgumentFactory
-import resource.AdminResource
-import resource.PropertyResource
-import resource.SpaceResource
-import resource.UserResource
+import resource.*
 import service.DevStartupService
 import java.util.*
 import java.util.logging.Level
@@ -80,6 +77,7 @@ class SpaceApplication : Application<SpaceConfiguration>() {
         jersey.register(injector.getInstance(AdminResource::class.java))
         jersey.register(injector.getInstance(SpaceResource::class.java))
         jersey.register(injector.getInstance(PropertyResource::class.java))
+        jersey.register(injector.getInstance(TheoremResource::class.java))
         jersey.register(injector.getInstance(UserResource::class.java))
 
         val originRequestFilter = injector.getInstance(OriginRequestFilter::class.java)

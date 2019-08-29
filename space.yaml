@@ -34,5 +34,7 @@ environment: development
 
 jwtSecret: jwtSecret
 
-httpsRedirect: true
-serverUrl: https://localhost:8443
+#httpsRedirect: true
+#serverUrl: https://localhost:8443
+httpsRedirect: false
+serverUrl: http://localhost:8080

@@ -1,6 +1,7 @@
-package model.rest
+package model.rest.post
 
 import model.enums.Field
+import model.rest.ReferenceDto
 
 data class PostPropertyDto(
     val name: String?,
