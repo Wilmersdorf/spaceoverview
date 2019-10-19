@@ -50,9 +50,8 @@ class ValidationService {
                 errors[key] = "Please enter a statement with at most 128 characters or leave empty."
             } else if (reference.url != null &&
                 !(UrlValidator.getInstance().isValid(reference.url) ||
-                        (reference.url.startsWith("https://en.wikipedia.org/wiki") && UrlValidator.getInstance().isValid(
-                            reference.url.replace("–", "%E2%80%93")
-                        )))
+                        (reference.url.startsWith("https://en.wikipedia.org/wiki") &&
+                                UrlValidator.getInstance().isValid(escapeWikipediaUrl(reference.url))))
             ) {
                 errors[key] = "Unable to parse url."
             } else if (reference.url != null && reference.url.length > 256) {
@@ -66,6 +65,14 @@ class ValidationService {
             }
         }
         return errors
+    }
+
+    private fun escapeWikipediaUrl(url: String): String {
+        return "https://en.wikipedia.org/wiki" + url.removePrefix("https://en.wikipedia.org/wiki")
+            .replace("–", "%E2%80%93")
+            .replace("ä", "%C3%A4")
+            .replace("ö", "%C3%B6")
+            .replace("ü", "%C3%BC")
     }
 
 }

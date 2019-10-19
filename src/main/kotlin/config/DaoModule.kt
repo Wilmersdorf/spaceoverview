@@ -17,6 +17,9 @@ class DaoModule(private val jdbi: Jdbi) : AbstractModule() {
         bindDao(ConditionDao::class.java)
         bindDao(ConclusionDao::class.java)
         bindDao(ComputationDao::class.java)
+        bindDao(DifferentialEquationDao::class.java)
+        bindDao(DifferentialEquationPropertyDao::class.java)
+        bindDao(DifferentialEquationLinkDao::class.java)
     }
 
     private fun <T> bindDao(clazz: Class<T>) {

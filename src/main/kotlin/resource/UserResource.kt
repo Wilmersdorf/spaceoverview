@@ -3,8 +3,8 @@ package resource
 import com.google.inject.Inject
 import dao.InviteDao
 import dao.UserDao
+import exception.JsonException
 import model.database.UserData
-import model.rest.ErrorDto
 import model.rest.post.PostLoginDto
 import model.rest.post.PostSignupDto
 import org.apache.commons.lang.StringUtils
@@ -21,7 +21,6 @@ import javax.ws.rs.Path
 import javax.ws.rs.Produces
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.core.Response
-import javax.ws.rs.core.Response.Status.BAD_REQUEST
 import kotlin.collections.HashMap
 
 @Path("/user")
@@ -55,14 +54,16 @@ class UserResource @Inject constructor(
     @POST
     fun signup(postSignupDto: PostSignupDto): Response {
         val errors = validatePostSignupDto(postSignupDto)
-        return if (errors.isNotEmpty()) {
-            Response.status(BAD_REQUEST).entity(ErrorDto(errors)).build()
+        if (errors.isNotEmpty()) {
+            throw JsonException(errors)
         } else {
             Thread.sleep(delay)
             val invite = inviteDao.getByCode(postSignupDto.inviteCode!!)
             if (invite == null) {
-                val error = mapOf("inviteCode" to "Please enter a valid invite code.")
-                Response.status(BAD_REQUEST).entity(ErrorDto(error)).build()
+                throw JsonException(
+                    key = "inviteCode",
+                    value = "Please enter a valid invite code."
+                )
             } else {
                 val hash = bCryptPasswordEncoder.encode(postSignupDto.password)
                 val now = LocalDateTime.now()
@@ -77,15 +78,17 @@ class UserResource @Inject constructor(
                 try {
                     userDao.create(user)
                 } catch (exception: Exception) {
-                    val emailError = mapOf("email" to "A user with this email already exists.")
-                    Response.status(BAD_REQUEST).entity(ErrorDto(emailError)).build()
+                    throw JsonException(
+                        key = "email",
+                        value = "A user with this email already exists."
+                    )
                 }
                 inviteDao.delete(invite.id)
                 val jwtToken = jwtService.create(user.id)
                 val jwtCookie = cookieService.createCookie("jwt", jwtToken, true)
                 val isAdminCookie = cookieService.createCookie("isAdmin", "false", false)
                 val canEditCookie = cookieService.createCookie("canEdit", "true", false)
-                Response.ok()
+                return Response.ok()
                     .header(setCookieHeader, jwtCookie)
                     .header(setCookieHeader, isAdminCookie)
                     .header(setCookieHeader, canEditCookie)
@@ -98,25 +101,29 @@ class UserResource @Inject constructor(
     @POST
     fun login(postLoginDto: PostLoginDto): Response {
         val errors = validatePostLoginDto(postLoginDto)
-        return if (errors.isNotEmpty()) {
-            Response.status(BAD_REQUEST).entity(ErrorDto(errors)).build()
+        if (errors.isNotEmpty()) {
+            throw JsonException(errors)
         } else {
             Thread.sleep(delay)
             val user = userDao.getByEmail(postLoginDto.email!!)
             if (user == null) {
-                val error = mapOf("general" to "Email or password invalid.")
-                Response.status(BAD_REQUEST).entity(ErrorDto(error)).build()
+                throw JsonException(
+                    key = "general",
+                    value = "Email or password invalid."
+                )
             } else {
                 val valid = bCryptPasswordEncoder.matches(postLoginDto.password, user.hash)
                 if (!valid) {
-                    val error = mapOf("general" to "Email or password invalid.")
-                    Response.status(BAD_REQUEST).entity(ErrorDto(error)).build()
+                    throw JsonException(
+                        key = "general",
+                        value = "Email or password invalid."
+                    )
                 } else {
                     val jwtToken = jwtService.create(user.id)
                     val jwtCookie = cookieService.createCookie("jwt", jwtToken, true)
                     val isAdminCookie = cookieService.createCookie("isAdmin", user.isAdmin.toString(), false)
                     val canEditCookie = cookieService.createCookie("canEdit", "true", false)
-                    Response.ok()
+                    return Response.ok()
                         .header(setCookieHeader, jwtCookie)
                         .header(setCookieHeader, isAdminCookie)
                         .header(setCookieHeader, canEditCookie)

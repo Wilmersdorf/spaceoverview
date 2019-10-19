@@ -2,12 +2,12 @@ package resource
 
 import com.google.inject.Inject
 import dao.*
+import exception.JsonException
 import io.dropwizard.auth.Auth
 import mapper.ToDataMapper
 import mapper.ToDtoMapper
 import model.User
 import model.database.PropertyData
-import model.rest.ErrorDto
 import model.rest.LinkSpaceDto
 import model.rest.post.PostPropertyDto
 import service.ComputationService
@@ -48,12 +48,12 @@ class PropertyResource @Inject constructor(
     @GET
     fun getProperty(@PathParam("id") id: UUID): Response {
         val property = propertyDao.get(id)
-        return if (property != null) {
+        if (property == null) {
+            throw NotFoundException()
+        } else {
             val references = referenceDao.getByPropertyId(id)
             val propertyDto = toDtoMapper.toPropertyDto(property, references)
             return Response.ok(propertyDto).build()
-        } else {
-            Response.status(Response.Status.NOT_FOUND).build()
         }
     }
 
@@ -61,8 +61,8 @@ class PropertyResource @Inject constructor(
     fun add(postPropertyDto: PostPropertyDto, @Auth user: User): Response {
         val now = LocalDateTime.now()
         val errors = validate(postPropertyDto)
-        return if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+        if (errors.isNotEmpty()) {
+            throw JsonException(errors)
         } else {
             val property = PropertyData(
                 id = UUID.randomUUID(),
@@ -76,13 +76,15 @@ class PropertyResource @Inject constructor(
             try {
                 propertyDao.create(property)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("name" to "A property with this name already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "name",
+                    value = "A property with this name already exists."
+                )
             }
             references.forEach(referenceDao::create)
             val propertyDto = toDtoMapper.toPropertyDto(property, references)
             computationService.compute()
-            Response.ok(propertyDto).build()
+            return Response.ok(propertyDto).build()
         }
     }
 
@@ -95,10 +97,10 @@ class PropertyResource @Inject constructor(
     ): Response {
         val property = propertyDao.get(id)
         val errors = validate(postPropertyDto)
-        return if (property == null) {
-            return Response.status(Response.Status.NOT_FOUND).build()
+        if (property == null) {
+            throw NotFoundException()
         } else if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+            throw JsonException(errors)
         } else {
             val now = LocalDateTime.now()
             val propertyUpdate = property.copy(
@@ -111,14 +113,16 @@ class PropertyResource @Inject constructor(
             try {
                 propertyDao.update(propertyUpdate)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("name" to "Another property with this name already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "name",
+                    value = "Another property with this name already exists."
+                )
             }
             referenceDao.deleteByPropertyId(id)
             references.forEach(referenceDao::create)
             val propertyDto = toDtoMapper.toPropertyDto(propertyUpdate, references)
             computationService.compute()
-            Response.ok(propertyDto).build()
+            return Response.ok(propertyDto).build()
         }
     }
 
@@ -126,26 +130,28 @@ class PropertyResource @Inject constructor(
     @DELETE
     fun delete(@PathParam("id") id: UUID, @Auth user: User): Response {
         val property = propertyDao.get(id)
-        return if (property == null) {
-            return Response.status(Response.Status.NOT_FOUND).build()
+        if (property == null) {
+            throw NotFoundException()
         } else {
             val links = linkDao.getByPropertyId(id)
             if (links.isNotEmpty()) {
-                val errors =
-                    mapOf("general" to "Unable to delete property, because it is linked to spaces.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+                throw JsonException(
+                    key = "general",
+                    value = "Unable to delete property, because it is linked to spaces."
+                )
             } else {
                 val conditions = conditionDao.getByPropertyId(id)
                 val conclusions = conclusionDao.getByPropertyId(id)
                 if (conditions.isNotEmpty() || conclusions.isNotEmpty()) {
-                    val errors =
-                        mapOf("general" to "Unable to delete property, because it is used in theorems.")
-                    return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+                    throw JsonException(
+                        key = "general",
+                        value = "Unable to delete property, because it is used in theorems."
+                    )
                 } else {
                     referenceDao.deleteByPropertyId(id)
                     propertyDao.delete(id)
                     computationService.compute()
-                    Response.ok().build()
+                    return Response.ok().build()
                 }
             }
         }
@@ -155,8 +161,8 @@ class PropertyResource @Inject constructor(
     @GET
     fun getSpaces(@PathParam("id") id: UUID): Response {
         val property = propertyDao.get(id)
-        return if (property == null) {
-            Response.status(Response.Status.NOT_FOUND).build()
+        if (property == null) {
+            throw NotFoundException()
         } else {
             val linksBySpaceId = linkDao.getByPropertyId(id).associateBy { it.spaceId }
             val computationsBySpaceId = computationDao.getByPropertyId(id).groupBy { it.spaceId }
@@ -170,7 +176,7 @@ class PropertyResource @Inject constructor(
                 val computed = computations.isNotEmpty()
                 LinkSpaceDto(field, linked, computed, space)
             }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.space.symbol })
-            Response.ok(linkedSpaces).build()
+            return Response.ok(linkedSpaces).build()
         }
     }
 
