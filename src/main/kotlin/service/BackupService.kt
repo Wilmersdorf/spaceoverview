@@ -21,7 +21,10 @@ class BackupService @Inject constructor(
     private val conditionDao: ConditionDao,
     private val conclusionDao: ConclusionDao,
     private val referenceDao: ReferenceDao,
-    private val computationDao: ComputationDao
+    private val computationDao: ComputationDao,
+    private val differentialEquationDao: DifferentialEquationDao,
+    private val differentialEquationPropertyDao: DifferentialEquationPropertyDao,
+    private val differentialEquationLinkDao: DifferentialEquationLinkDao
 ) {
 
     fun export(): File {
@@ -32,7 +35,21 @@ class BackupService @Inject constructor(
         val conditions = conditionDao.getAll()
         val conclusions = conclusionDao.getAll()
         val references = referenceDao.getAll()
-        val backup = Backup(spaces, properties, links, theorems, conditions, conclusions, references)
+        val differentialEquations = differentialEquationDao.getAll()
+        val differentialEquationProperties = differentialEquationPropertyDao.getAll()
+        val differentialEquationLinks = differentialEquationLinkDao.getAll()
+        val backup = Backup(
+            spaces = spaces,
+            properties = properties,
+            links = links,
+            theorems = theorems,
+            conditions = conditions,
+            conclusions = conclusions,
+            differentialEquations = differentialEquations,
+            differentialEquationProperties = differentialEquationProperties,
+            differentialEquationLinks = differentialEquationLinks,
+            references = references
+        )
         val json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(backup)
         val file = File.createTempFile(LocalDateTime.now().toString() + "-backup", ".json")
         FileUtils.writeStringToFile(file, json, Charset.defaultCharset())
@@ -54,12 +71,18 @@ class BackupService @Inject constructor(
             theoremDao.deleteAll()
             spaceDao.deleteAll()
             propertyDao.deleteAll()
+            differentialEquationLinkDao.deleteAll()
+            differentialEquationDao.deleteAll()
+            differentialEquationPropertyDao.deleteAll()
             backup.spaces?.forEach(spaceDao::create)
             backup.properties?.forEach(propertyDao::create)
             backup.links?.forEach(linkDao::create)
             backup.theorems?.forEach(theoremDao::create)
             backup.conditions?.forEach(conditionDao::create)
             backup.conclusions?.forEach(conclusionDao::create)
+            backup.differentialEquations?.forEach(differentialEquationDao::create)
+            backup.differentialEquationProperties?.forEach(differentialEquationPropertyDao::create)
+            backup.differentialEquationLinks?.forEach(differentialEquationLinkDao::create)
             backup.references?.forEach(referenceDao::create)
         }
     }

@@ -1,15 +1,15 @@
 package model.database
 
-import model.enums.Field
 import java.time.LocalDateTime
 import java.util.*
 
-data class SpaceData(
+data class DifferentialEquationData(
     val id: UUID,
+    val name: String,
     val symbol: String,
-    val norm: String,
     val description: String,
-    val field: Field,
+    val variables: String,
+    val parameters: String,
     val created: LocalDateTime,
     val updated: LocalDateTime
 )

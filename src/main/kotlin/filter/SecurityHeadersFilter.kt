@@ -25,11 +25,11 @@ class SecurityHeadersFilter @Inject constructor(private val environment: Environ
         response.setHeader("Referrer-Policy", "same-origin")
         response.setHeader(
             "Content-Security-Policy", "default-src 'none';" +
-                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.css;" +
+                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.css;" +
                     "img-src 'self';" +
-                    "font-src https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/fonts/;" +
-                    "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/katex.min.js " +
-                    "https://cdn.jsdelivr.net/npm/katex@0.10.2/dist/contrib/auto-render.min.js;" +
+                    "font-src 'self' https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/fonts/;" +
+                    "script-src 'self' 'unsafe-eval' https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/katex.min.js " +
+                    "https://cdn.jsdelivr.net/npm/katex@0.12.0/dist/contrib/auto-render.min.js;" +
                     "connect-src 'self' https://en.wikipedia.org/w/api.php https://export.arxiv.org/api/query"
         )
         response.setHeader(

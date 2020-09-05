@@ -69,11 +69,46 @@ class ToDataMapper {
         return toReferences(theoremId = theoremId, time = time, references = references)
     }
 
+    fun toDifferentialEquationReferences(
+        differentialEquationId: UUID,
+        time: LocalDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(differentialEquationId = differentialEquationId, time = time, references = references)
+    }
+
+    fun toDifferentialEquationPropertyReferences(
+        differentialEquationPropertyId: UUID,
+        time: LocalDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(
+            differentialEquationPropertyId = differentialEquationPropertyId,
+            time = time,
+            references = references
+        )
+    }
+
+    fun toDifferentialEquationLinkReferences(
+        differentialEquationLinkId: UUID,
+        time: LocalDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(
+            differentialEquationLinkId = differentialEquationLinkId,
+            time = time,
+            references = references
+        )
+    }
+
     private fun toReferences(
         spaceId: UUID? = null,
         propertyId: UUID? = null,
         linkId: UUID? = null,
         theoremId: UUID? = null,
+        differentialEquationId: UUID? = null,
+        differentialEquationPropertyId: UUID? = null,
+        differentialEquationLinkId: UUID? = null,
         time: LocalDateTime,
         references: List<ReferenceDto>?
     ): List<ReferenceData> {
@@ -84,6 +119,9 @@ class ToDataMapper {
                 propertyId = propertyId,
                 linkId = linkId,
                 theoremId = theoremId,
+                differentialEquationId = differentialEquationId,
+                differentialEquationPropertyId = differentialEquationPropertyId,
+                differentialEquationLinkId = differentialEquationLinkId,
                 url = it.url?.trim(),
                 title = it.title!!.trim(),
                 arxivId = it.arxivId?.trim(),

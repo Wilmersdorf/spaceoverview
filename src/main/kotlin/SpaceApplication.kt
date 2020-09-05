@@ -78,6 +78,8 @@ class SpaceApplication : Application<SpaceConfiguration>() {
         jersey.register(injector.getInstance(SpaceResource::class.java))
         jersey.register(injector.getInstance(PropertyResource::class.java))
         jersey.register(injector.getInstance(TheoremResource::class.java))
+        jersey.register(injector.getInstance(DifferentialEquationResource::class.java))
+        jersey.register(injector.getInstance(DifferentialEquationPropertyResource::class.java))
         jersey.register(injector.getInstance(UserResource::class.java))
 
         val originRequestFilter = injector.getInstance(OriginRequestFilter::class.java)

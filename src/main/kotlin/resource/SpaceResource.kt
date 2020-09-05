@@ -2,6 +2,7 @@ package resource
 
 import com.google.inject.Inject
 import dao.*
+import exception.JsonException
 import io.dropwizard.auth.Auth
 import mapper.ToDataMapper
 import mapper.ToDtoMapper
@@ -10,7 +11,6 @@ import model.database.LinkData
 import model.database.SpaceData
 import model.enums.Field
 import model.enums.FieldLink
-import model.rest.ErrorDto
 import model.rest.LinkPropertyDto
 import model.rest.LinkSpacePropertyDto
 import model.rest.post.PostLinkDto
@@ -66,20 +66,20 @@ class SpaceResource @Inject constructor(
     @GET
     fun getSpace(@PathParam("id") id: UUID): Response {
         val space = spaceDao.get(id)
-        return if (space != null) {
+        if (space == null) {
+            throw NotFoundException()
+        } else {
             val references = referenceDao.getBySpaceId(id)
             val spaceDto = toDtoMapper.toSpaceDto(space, references)
             return Response.ok(spaceDto).build()
-        } else {
-            Response.status(Response.Status.NOT_FOUND).build()
         }
     }
 
     @POST
     fun add(postSpaceDto: PostSpaceDto, @Auth user: User): Response {
         val errors = validate(postSpaceDto)
-        return if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+        if (errors.isNotEmpty()) {
+            throw JsonException(errors)
         } else {
             val now = LocalDateTime.now()
             val space = SpaceData(
@@ -95,13 +95,15 @@ class SpaceResource @Inject constructor(
             try {
                 spaceDao.create(space)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("symbol" to "A space with this symbol already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "symbol",
+                    value = "A space with this symbol already exists."
+                )
             }
             references.forEach(referenceDao::create)
             val spaceDto = toDtoMapper.toSpaceDto(space, references)
             computationService.compute()
-            Response.ok(spaceDto).build()
+            return Response.ok(spaceDto).build()
         }
     }
 
@@ -114,10 +116,10 @@ class SpaceResource @Inject constructor(
     ): Response {
         val space = spaceDao.get(id)
         val errors = validate(postSpaceDto)
-        return if (space == null) {
-            return Response.status(Response.Status.NOT_FOUND).build()
+        if (space == null) {
+            throw NotFoundException()
         } else if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+            throw JsonException(errors)
         } else {
             val now = LocalDateTime.now()
             val spaceUpdate = space.copy(
@@ -131,14 +133,16 @@ class SpaceResource @Inject constructor(
             try {
                 spaceDao.update(spaceUpdate)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("symbol" to "Another space with this symbol already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "symbol",
+                    value = "Another space with this symbol already exists."
+                )
             }
             referenceDao.deleteBySpaceId(id)
             references.forEach(referenceDao::create)
             val spaceDto = toDtoMapper.toSpaceDto(spaceUpdate, references)
             computationService.compute()
-            Response.ok(spaceDto).build()
+            return Response.ok(spaceDto).build()
         }
     }
 
@@ -146,19 +150,20 @@ class SpaceResource @Inject constructor(
     @DELETE
     fun delete(@PathParam("id") id: UUID, @Auth user: User): Response {
         val space = spaceDao.get(id)
-        return if (space == null) {
-            return Response.status(Response.Status.NOT_FOUND).build()
+        if (space == null) {
+            throw NotFoundException()
         } else {
             val links = linkDao.getBySpaceId(id)
             if (links.isNotEmpty()) {
-                val errors =
-                    mapOf("general" to "Unable to delete space, because it is linked to properties.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+                throw JsonException(
+                    key = "general",
+                    value = "Unable to delete space, because it is linked to properties."
+                )
             } else {
                 referenceDao.deleteBySpaceId(id)
                 spaceDao.delete(id)
                 computationService.compute()
-                Response.ok().build()
+                return Response.ok().build()
             }
         }
     }
@@ -171,7 +176,7 @@ class SpaceResource @Inject constructor(
     ): Response {
         val space = spaceDao.get(spaceId)
         return if (space == null) {
-            Response.status(Response.Status.NOT_FOUND).build()
+            throw NotFoundException()
         } else if (!unlinked) {
             val linkedProperties = getLinkedProperties(spaceId)
             Response.ok(linkedProperties).build()
@@ -215,7 +220,7 @@ class SpaceResource @Inject constructor(
 
     @Path("/{spaceId}/property/{propertyId}")
     @GET
-    fun getProperty(
+    fun getLink(
         @PathParam("spaceId") spaceId: UUID,
         @PathParam("propertyId") propertyId: UUID
     ): Response {
@@ -223,8 +228,8 @@ class SpaceResource @Inject constructor(
         val property = propertyDao.get(propertyId)
         val computations = computationDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
         val link = linkDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
-        return if (space == null || property == null || (computations.isEmpty() && link == null)) {
-            Response.status(Response.Status.NOT_FOUND).build()
+        if (space == null || property == null || (computations.isEmpty() && link == null)) {
+            throw NotFoundException()
         } else {
             val spaceReferences = referenceDao.getBySpaceId(spaceId)
             val spaceDto = toDtoMapper.toSpaceDto(space, spaceReferences)
@@ -238,7 +243,7 @@ class SpaceResource @Inject constructor(
             }
             val field = fieldService.getCombinedField(link, computations)
             val linkProperty = LinkSpacePropertyDto(spaceDto, field, propertyDto, linkDto, computations)
-            Response.ok(linkProperty).build()
+            return Response.ok(linkProperty).build()
         }
     }
 
@@ -253,19 +258,23 @@ class SpaceResource @Inject constructor(
         val space = spaceDao.get(spaceId)
         val property = propertyDao.get(propertyId)
         if (space == null || property == null) {
-            return Response.status(Response.Status.NOT_FOUND).build()
+            throw NotFoundException()
         } else if (postLinkDto.field == null) {
-            val error = mapOf("field" to "This field is not allowed.")
-            return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(error)).build()
+            throw JsonException(
+                key = "field",
+                value = "This field is not allowed."
+            )
         } else {
             val errors = validationService.validateReferences(postLinkDto.references)
             if (errors.isNotEmpty()) {
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+                throw JsonException(errors)
             } else {
                 val allowedFieldLinks = allowedFieldLinks[Pair(space.field, property.field)].orEmpty()
                 if (!allowedFieldLinks.contains(postLinkDto.field)) {
-                    val error = mapOf("field" to "This field is not allowed.")
-                    return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(error)).build()
+                    throw JsonException(
+                        key = "field",
+                        value = "This field is not allowed."
+                    )
                 } else {
                     val now = LocalDateTime.now()
                     val existingLink = linkDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
@@ -308,13 +317,13 @@ class SpaceResource @Inject constructor(
         @Auth user: User
     ): Response {
         val link = linkDao.getBySpaceIdAndPropertyId(spaceId, propertyId)
-        return if (link == null) {
-            Response.status(Response.Status.NOT_FOUND).build()
+        if (link == null) {
+            throw NotFoundException()
         } else {
             referenceDao.deleteByLinkId(link.id)
             linkDao.delete(link.id)
             computationService.compute()
-            Response.ok().build()
+            return Response.ok().build()
         }
     }
 
