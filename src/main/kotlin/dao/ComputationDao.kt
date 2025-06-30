@@ -9,14 +9,27 @@ interface ComputationDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Computation (id, spaceId, propertyId, theoremId, field, created, updated)
-        VALUES (:data.id, :data.spaceId, :data.propertyId, :data.theoremId, :data.field, :data.created, :data.updated)
+        INSERT INTO Computation (
+        id,
+        spaceId,
+        propertyId,
+        theoremId,
+        field,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.spaceId,
+        :data.propertyId,
+        :data.theoremId,
+        :data.field,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: ComputationData)
-
-    @SqlQuery("SELECT * FROM Computation")
-    fun getAll(): List<ComputationData>
 
     @SqlQuery("SELECT * FROM Computation WHERE spaceId = :spaceId")
     fun getBySpaceId(spaceId: UUID): List<ComputationData>

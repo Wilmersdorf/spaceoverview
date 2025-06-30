@@ -9,14 +9,25 @@ interface ConditionDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Condition (id, theoremId, propertyId, field, created, updated)
-        VALUES (:data.id, :data.theoremId, :data.propertyId, :data.field, :data.created, :data.updated)
+        INSERT INTO Condition (
+        id,
+        theoremId,
+        propertyId,
+        field,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.theoremId,
+        :data.propertyId,
+        :data.field,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: ConditionData)
-
-    @SqlQuery("SELECT * FROM Condition WHERE id = :id")
-    fun get(id: UUID): ConditionData?
 
     @SqlQuery("SELECT * FROM Condition WHERE theoremId = :theoremId")
     fun getByTheoremId(theoremId: UUID): List<ConditionData>

@@ -9,8 +9,24 @@ interface LinkDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Link (id, spaceId, propertyId, field, created, updated)
-        VALUES (:data.id, :data.spaceId, :data.propertyId, :data.field, :data.created, :data.updated)
+        INSERT INTO Link (
+        id,
+        spaceId,
+        propertyId,
+        field,
+        description,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.spaceId,
+        :data.propertyId,
+        :data.field,
+        :data.description,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: LinkData)
@@ -18,18 +34,17 @@ interface LinkDao {
     @SqlUpdate(
         """
         UPDATE Link SET
+        id = :data.id,
+        spaceId = :data.spaceId,
+        propertyId = :data.propertyId,
         field = :data.field,
+        description = :data.description,
+        created = :data.created,
         updated = :data.updated
         WHERE id = :data.id
     """
     )
     fun update(data: LinkData)
-
-    @SqlUpdate("DELETE FROM Link WHERE id = :id")
-    fun delete(id: UUID)
-
-    @SqlQuery("SELECT * FROM Link WHERE id = :id")
-    fun get(id: UUID): LinkData?
 
     @SqlQuery("SELECT * FROM Link WHERE spaceId = :spaceId")
     fun getBySpaceId(spaceId: UUID): List<LinkData>
@@ -42,6 +57,9 @@ interface LinkDao {
 
     @SqlQuery("SELECT * FROM Link")
     fun getAll(): List<LinkData>
+
+    @SqlUpdate("DELETE FROM Link WHERE id = :id")
+    fun delete(id: UUID)
 
     @SqlUpdate("TRUNCATE TABLE Link CASCADE")
     fun deleteAll()

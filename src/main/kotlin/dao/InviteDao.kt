@@ -9,8 +9,18 @@ interface InviteDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Invite (id, code, created, updated)
-        VALUES (:data.id, :data.code, :data.created, :data.updated)
+        INSERT INTO Invite (
+        id,
+        code,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.code,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: InviteData)

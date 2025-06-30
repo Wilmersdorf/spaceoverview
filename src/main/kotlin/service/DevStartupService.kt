@@ -4,18 +4,18 @@ import com.google.inject.Inject
 import dao.UserDao
 import model.database.UserData
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.util.*
 
 class DevStartupService @Inject constructor(
-    private val userDao: UserDao,
-    private val bCryptPasswordEncoder: BCryptPasswordEncoder
+    private val bCryptPasswordEncoder: BCryptPasswordEncoder,
+    private val userDao: UserDao
 ) {
 
     fun startup() {
         val users = userDao.getAll()
         if (users.isEmpty()) {
-            val now = LocalDateTime.now()
+            val now = ZonedDateTime.now()
             val adminHash = bCryptPasswordEncoder.encode("password")
             val admin = UserData(
                 id = UUID.randomUUID(),

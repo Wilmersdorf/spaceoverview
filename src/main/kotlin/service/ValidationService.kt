@@ -4,6 +4,7 @@ import model.rest.ReferenceDto
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.apache.commons.lang3.StringUtils.isNotBlank
 import org.apache.commons.validator.routines.UrlValidator
+import util.reduceToNull
 
 class ValidationService {
 
@@ -30,40 +31,50 @@ class ValidationService {
     // TODO Improve validation by checking arxiv website, wikipedia website and bibtex
     fun validateReferences(references: List<ReferenceDto>?): Map<String, String> {
         val errors = HashMap<String, String>()
-        references.orEmpty().forEachIndexed { index, reference ->
-            val key = "reference[$index]"
-            val contentCount =
-                listOf(
+        references.orEmpty()
+            .map {
+                ReferenceDto(
+                    title = it.title.reduceToNull(),
+                    url = it.url.reduceToNull(),
+                    arxivId = it.arxivId.reduceToNull(),
+                    wikipediaId = it.wikipediaId,
+                    bibtex = it.bibtex.reduceToNull(),
+                    page = it.page,
+                    statement = it.statement.reduceToNull()
+                )
+            }
+            .forEachIndexed { index, reference ->
+                val key = "reference[$index]"
+                val contentCount = listOf(
                     isNotBlank(reference.arxivId),
                     reference.wikipediaId != null,
                     isNotBlank(reference.bibtex)
-                ).filter { it }.count()
-            if (contentCount != 1) {
-                errors[key] = "Please provide exactly one of arxiv, wikipedia or bibtex."
-            } else if (isBlank(reference.title)) {
-                errors[key] = "Title cannot be blank."
-            } else if (reference.title!!.length > 128) {
-                errors[key] = "Please enter a title with at most 128 characters."
-            } else if (reference.page != null && (reference.page < 0 || reference.page > 100000)) {
-                errors[key] = "Please enter a valid page number or leave empty."
-            } else if (reference.statement != null && reference.statement.length > 128) {
-                errors[key] = "Please enter a statement with at most 128 characters or leave empty."
-            } else if (reference.url != null &&
-                !(UrlValidator.getInstance().isValid(reference.url) ||
-                        (reference.url.startsWith("https://en.wikipedia.org/wiki") && UrlValidator.getInstance().isValid(
-                            reference.url.replace("–", "%E2%80%93")
-                        )))
-            ) {
-                errors[key] = "Unable to parse url."
-            } else if (reference.url != null && reference.url.length > 256) {
-                errors[key] = "Unable to parse url."
-            } else if (isNotBlank(reference.arxivId) && reference.url == null) {
-                errors[key] = "Unable to parse url."
-            } else if (reference.wikipediaId != null && reference.url == null) {
-                errors[key] = "Unable to parse url."
-            } else if (reference.bibtex != null && reference.bibtex.length > 1024) {
-                errors[key] = "Please enter bibtex with at most 1024 characters."
+                ).count { it }
+                if (contentCount != 1) {
+                    errors[key] = "Please provide exactly one of arxiv, wikipedia or bibtex."
+                } else if (isBlank(reference.title)) {
+                    errors[key] = "Title cannot be blank."
+                } else if (reference.title!!.length > 128) {
+                    errors[key] = "Please enter a title with at most 128 characters."
+                } else if (reference.page != null && (reference.page < 1 || reference.page > 100000)) {
+                    errors[key] = "Please enter a valid page number or leave empty."
+                } else if (reference.statement != null && reference.statement.length > 128) {
+                    errors[key] = "Please enter a statement with at most 128 characters or leave empty."
+                } else if (reference.url != null && !UrlValidator.getInstance().isValid(reference.url)
+                ) {
+                    errors[key] = "Unable to parse url."
+                } else if (reference.url != null && reference.url.length > 256) {
+                    errors[key] = "Unable to parse url."
+                } else if (isNotBlank(reference.arxivId) && reference.url == null) {
+                    errors[key] = "Unable to parse url."
+                } else if (reference.wikipediaId != null && reference.url == null) {
+                    errors[key] = "Unable to parse url."
+                } else if (reference.bibtex != null && reference.bibtex.length > 1024) {
+                    errors[key] = "Please enter bibtex with at most 1024 characters."
+                }
             }
+        if (references.orEmpty().size > 10) {
+            errors["reference[10]"] = "Too many references."
         }
         return errors
     }

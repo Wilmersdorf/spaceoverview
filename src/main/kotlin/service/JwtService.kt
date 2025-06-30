@@ -4,8 +4,8 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
 import com.google.inject.Inject
-import mu.KotlinLogging
-import org.apache.commons.lang3.time.DateUtils
+import util.Logging
+import java.time.ZonedDateTime
 import java.util.*
 
 class JwtService @Inject constructor(
@@ -13,13 +13,13 @@ class JwtService @Inject constructor(
     private val jwtVerifier: JWTVerifier
 ) {
 
-    private val logger = KotlinLogging.logger {}
+    private val logger = Logging.logger {}
 
     fun create(userId: UUID): String {
-        val expiresAt = DateUtils.addMonths(Date(), 3)
+        val now = ZonedDateTime.now()
         return JWT.create()
-            .withIssuedAt(Date())
-            .withExpiresAt(expiresAt)
+            .withIssuedAt(now.toInstant())
+            .withExpiresAt(now.plusMonths(3).toInstant())
             .withClaim("userId", userId.toString())
             .sign(algorithm)
     }

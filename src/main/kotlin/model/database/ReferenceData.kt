@@ -1,6 +1,7 @@
 package model.database
 
-import java.time.LocalDateTime
+import com.fasterxml.jackson.annotation.JsonFormat
+import java.time.ZonedDateTime
 import java.util.*
 
 data class ReferenceData(
@@ -9,6 +10,9 @@ data class ReferenceData(
     val propertyId: UUID?,
     val linkId: UUID?,
     val theoremId: UUID?,
+    val differentialEquationId: UUID?,
+    val differentialEquationPropertyId: UUID?,
+    val differentialEquationLinkId: UUID?,
     val title: String,
     val url: String?,
     val arxivId: String?,
@@ -16,6 +20,8 @@ data class ReferenceData(
     val bibtex: String?,
     val page: Int?,
     val statement: String?,
-    val created: LocalDateTime,
-    val updated: LocalDateTime
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSX")
+    val created: ZonedDateTime,
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSX")
+    val updated: ZonedDateTime
 )

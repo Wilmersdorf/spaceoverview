@@ -9,8 +9,20 @@ interface TheoremDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Theorem (id, name, created, updated)
-        VALUES (:data.id, :data.name, :data.created, :data.updated)
+        INSERT INTO Theorem (
+        id,
+        name,
+        description,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.name,
+        :data.description,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: TheoremData)
@@ -18,7 +30,10 @@ interface TheoremDao {
     @SqlUpdate(
         """
         UPDATE Theorem SET
+        id = :data.id,
         name = :data.name,
+        description = :data.description,
+        created = :data.created,
         updated = :data.updated
         WHERE id = :data.id
     """

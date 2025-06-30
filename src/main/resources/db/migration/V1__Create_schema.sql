@@ -1,38 +1,75 @@
 CREATE TABLE UserData (
   id      UUID PRIMARY KEY,
-  email   TEXT NOT NULL UNIQUE,
-  hash    TEXT NOT NULL,
-  isAdmin BOOLEAN NOT NULL,
-  created TIMESTAMP NOT NULL,
-  updated TIMESTAMP NOT NULL
+  email   TEXT UNIQUE,
+  hash    TEXT,
+  isAdmin BOOLEAN,
+  created TIMESTAMP WITH TIME ZONE,
+  updated TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE SpaceData (
   id          UUID PRIMARY KEY,
-  symbol      TEXT NOT NULL UNIQUE,
-  norm        TEXT NOT NULL,
-  description TEXT NOT NULL,
-  field       TEXT NOT NULL,
-  created     TIMESTAMP NOT NULL,
-  updated     TIMESTAMP NOT NULL
+  symbol      TEXT UNIQUE,
+  norm        TEXT,
+  description TEXT,
+  field       TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE Property (
   id          UUID PRIMARY KEY,
-  name        TEXT NOT NULL UNIQUE,
-  description TEXT NOT NULL,
-  field       TEXT NOT NULL,
-  created     TIMESTAMP NOT NULL,
-  updated     TIMESTAMP NOT NULL
+  name        TEXT UNIQUE,
+  description TEXT,
+  field       TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE Link (
+  id          UUID PRIMARY KEY,
+  spaceId     UUID REFERENCES SpaceData(id),
+  propertyId  UUID REFERENCES Property(id),
+  field       TEXT,
+  description TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE Theorem (
+  id          UUID PRIMARY KEY,
+  name        TEXT UNIQUE,
+  description TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE Condition (
+  id          UUID PRIMARY KEY,
+  theoremId   UUID REFERENCES Theorem(id),
+  propertyId  UUID REFERENCES Property(id),
+  field       TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE Conclusion (
+  id          UUID PRIMARY KEY,
+  theoremId   UUID REFERENCES Theorem(id),
+  propertyId  UUID REFERENCES Property(id),
+  field       TEXT,
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE Computation (
   id         UUID PRIMARY KEY,
   spaceId    UUID REFERENCES SpaceData(id),
   propertyId UUID REFERENCES Property(id),
-  field      TEXT NOT NULL,
-  created    TIMESTAMP NOT NULL,
-  updated    TIMESTAMP NOT NULL
+  theoremId  UUID REFERENCES Theorem(id),
+  field      TEXT,
+  created    TIMESTAMP WITH TIME ZONE,
+  updated    TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE Reference (
@@ -40,20 +77,21 @@ CREATE TABLE Reference (
   spaceId     UUID REFERENCES SpaceData(id),
   propertyId  UUID REFERENCES Property(id),
   linkId      UUID REFERENCES Link(id),
+  theoremId   UUID REFERENCES Theorem(id),
+  title       TEXT,
   url         TEXT,
-  title       TEXT NOT NULL,
   arxivId     TEXT,
-  wikipediaId BIGINT,
+  wikipediaId NUMERIC,
   bibtex      TEXT,
-  page        BIGINT,
+  page        NUMERIC,
   statement   TEXT,
-  created     TIMESTAMP NOT NULL,
-  updated     TIMESTAMP NOT NULL
+  created     TIMESTAMP WITH TIME ZONE,
+  updated     TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE Invite (
   id      UUID PRIMARY KEY,
-  code    TEXT NOT NULL UNIQUE,
-  created TIMESTAMP NOT NULL,
-  updated TIMESTAMP NOT NULL
+  code    TEXT UNIQUE,
+  created TIMESTAMP WITH TIME ZONE,
+  updated TIMESTAMP WITH TIME ZONE
 );

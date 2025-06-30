@@ -2,108 +2,88 @@ package service
 
 import com.google.inject.Inject
 import dao.*
-import model.database.*
-import model.enums.Field
-import model.enums.FieldLink
-import model.enums.FieldLink.*
-import mu.KotlinLogging
-import java.time.LocalDateTime
+import model.database.ComputationData
+import model.database.ConditionData
+import model.database.LinkData
+import util.Logging
+import java.time.ZonedDateTime
 import java.util.*
-import kotlin.collections.ArrayList
 
 class ComputationService @Inject constructor(
     private val computationDao: ComputationDao,
-    private val spaceDao: SpaceDao,
-    private val linkDao: LinkDao,
-    private val theoremDao: TheoremDao,
+    private val conclusionDao: ConclusionDao,
     private val conditionDao: ConditionDao,
-    private val conclusionDao: ConclusionDao
+    private val fieldService: FieldService,
+    private val linkDao: LinkDao,
+    private val spaceDao: SpaceDao,
+    private val theoremDao: TheoremDao
 ) {
 
-    private val logger = KotlinLogging.logger {}
-
-    private val fieldLinkMap = mapOf(
-        REAL to setOf(REAL, REAL_AND_COMPLEX, REAL_AND_NOT_COMPLEX),
-        COMPLEX to setOf(COMPLEX, REAL_AND_COMPLEX, NOT_REAL_AND_COMPLEX),
-        REAL_AND_COMPLEX to setOf(REAL_AND_COMPLEX),
-        NOT_REAL to setOf(NOT_REAL, NOT_REAL_AND_NOT_COMPLEX, NOT_REAL_AND_COMPLEX),
-        NOT_COMPLEX to setOf(NOT_COMPLEX, NOT_REAL_AND_NOT_COMPLEX, REAL_AND_NOT_COMPLEX),
-        NOT_REAL_AND_NOT_COMPLEX to setOf(NOT_REAL_AND_COMPLEX)
-    )
+    private val logger = Logging.logger {}
 
     @Synchronized
     fun compute(): List<ComputationData> {
+        val now = ZonedDateTime.now()
         val time = System.currentTimeMillis()
         computationDao.deleteAll()
         val spaces = spaceDao.getAll()
-        val links = linkDao.getAll()
-        val linksBySpace = links.groupBy { it.spaceId }
+        val spaceIdToLink = linkDao.getAll().groupBy { it.spaceId }
         val theorems = theoremDao.getAll()
-        val conditions = conditionDao.getAll()
-        val conditionsByTheorem = conditions.groupBy { it.theoremId }
-        val conclusions = conclusionDao.getAll()
-        val conclusionsByTheorem = conclusions.groupBy { it.theoremId }
+        val theoremIdToConditions = conditionDao.getAll().groupBy { it.theoremId }
+        val theoremIdToConclusions = conclusionDao.getAll().groupBy { it.theoremId }
         val computations = ArrayList<ComputationData>()
         for (space in spaces) {
-            val spaceLinks = linksBySpace[space.id].orEmpty()
+            val spaceLinks = spaceIdToLink[space.id] ?: continue
             for (theorem in theorems) {
-                val theoremConditions = conditionsByTheorem[theorem.id].orEmpty()
-                val hasConditions = theoremConditions.all {
-                    spaceHasCondition(spaceLinks, it)
-                }
-                if (hasConditions) {
-                    val theoremConclusions = conclusionsByTheorem[theorem.id].orEmpty()
-                    computations.addAll(getComputations(space, theoremConclusions))
+                val theoremConditions = theoremIdToConditions[theorem.id].orEmpty()
+                val real = theoremConditions.all { spaceHasConditionReal(spaceLinks, it) }
+                val complex = theoremConditions.all { spaceHasConditionComplex(spaceLinks, it) }
+                theoremIdToConclusions[theorem.id].orEmpty().forEach { conclusion ->
+                    val realConclusion = fieldService.real(conclusion.field)
+                    val complexConclusion = fieldService.complex(conclusion.field)
+                    val spaceRealConclusion = if (real && realConclusion != null) {
+                        realConclusion
+                    } else {
+                        null
+                    }
+                    val spaceComplexConclusion = if (complex && complexConclusion != null) {
+                        complexConclusion
+                    } else {
+                        null
+                    }
+                    if (spaceRealConclusion != null || spaceComplexConclusion != null) {
+                        computations.add(
+                            ComputationData(
+                                id = UUID.randomUUID(),
+                                spaceId = space.id,
+                                theoremId = conclusion.theoremId,
+                                propertyId = conclusion.propertyId,
+                                field = fieldService.merge(Pair(spaceRealConclusion, spaceComplexConclusion))!!,
+                                created = now,
+                                updated = now
+                            )
+                        )
+                    }
                 }
             }
         }
         computations.forEach(computationDao::create)
-        logger.info { "Computation took ${System.currentTimeMillis() - time} milliseconds" }
+        logger.info("Computation took ${System.currentTimeMillis() - time} milliseconds")
         return computations
     }
 
-    private fun spaceHasCondition(links: List<LinkData>, condition: ConditionData): Boolean {
-        val link = links.firstOrNull { it.propertyId == condition.propertyId }
-        return link != null && fieldLinkMap[condition.field].orEmpty().contains(link.field)
+    private fun spaceHasConditionReal(links: List<LinkData>, condition: ConditionData): Boolean {
+        val link = links.firstOrNull { it.propertyId == condition.propertyId } ?: return false
+        val realLink = fieldService.real(link.field) ?: return false
+        val realCondition = fieldService.real(condition.field) ?: return false
+        return realLink == realCondition
     }
 
-    private fun getComputations(space: SpaceData, conclusions: List<ConclusionData>): List<ComputationData> {
-        val now = LocalDateTime.now()
-        return conclusions.mapNotNull { getConclusionField(space, it) }.map {
-            ComputationData(
-                id = UUID.randomUUID(),
-                spaceId = space.id,
-                theoremId = it.first.theoremId,
-                propertyId = it.first.propertyId,
-                field = it.second,
-                created = now,
-                updated = now
-            )
-        }.toList()
-    }
-
-    private fun getConclusionField(space: SpaceData, conclusion: ConclusionData): Pair<ConclusionData, FieldLink>? {
-        return if (space.field == Field.REAL) {
-            if (fieldLinkMap[REAL].orEmpty().contains(conclusion.field)) {
-                Pair(conclusion, REAL)
-            } else if (fieldLinkMap[NOT_REAL].orEmpty().contains(conclusion.field)) {
-                Pair(conclusion, NOT_REAL)
-            } else {
-                null
-            }
-        } else if (space.field == Field.COMPLEX) {
-            if (fieldLinkMap[COMPLEX].orEmpty().contains(conclusion.field)) {
-                Pair(conclusion, COMPLEX)
-            } else if (fieldLinkMap[NOT_COMPLEX].orEmpty().contains(conclusion.field)) {
-                Pair(conclusion, NOT_COMPLEX)
-            } else {
-                null
-            }
-        } else if (space.field == Field.REAL_OR_COMPLEX) {
-            return Pair(conclusion, conclusion.field)
-        } else {
-            null
-        }
+    private fun spaceHasConditionComplex(links: List<LinkData>, condition: ConditionData): Boolean {
+        val link = links.firstOrNull { it.propertyId == condition.propertyId } ?: return false
+        val complexLink = fieldService.complex(link.field) ?: return false
+        val complexCondition = fieldService.complex(condition.field) ?: return false
+        return complexLink == complexCondition
     }
 
 }

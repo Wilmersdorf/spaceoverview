@@ -7,56 +7,50 @@ import dao.SpaceDao
 import dao.TheoremDao
 import exception.UnauthorizedException
 import io.dropwizard.auth.Auth
+import jakarta.ws.rs.*
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.Response
 import model.User
 import model.database.InviteData
 import model.rest.AdminComputationDto
-import org.glassfish.jersey.media.multipart.FormDataBodyPart
-import org.glassfish.jersey.media.multipart.FormDataParam
+import model.rest.post.PostBackupDto
 import service.BackupService
 import service.ComputationService
 import service.RandomService
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.util.*
-import javax.ws.rs.*
-import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
 
+@Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 @Path("/admin")
 class AdminResource @Inject constructor(
     private val backupService: BackupService,
-    private val inviteDao: InviteDao,
-    private val randomService: RandomService,
     private val computationService: ComputationService,
-    private val theoremDao: TheoremDao,
+    private val inviteDao: InviteDao,
     private val propertyDao: PropertyDao,
-    private val spaceDao: SpaceDao
+    private val randomService: RandomService,
+    private val spaceDao: SpaceDao,
+    private val theoremDao: TheoremDao
 ) {
 
     @Path("/export")
     @GET
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_OCTET_STREAM)
     fun export(@Auth user: User): Response {
         if (!user.isAdmin) {
             throw UnauthorizedException()
         } else {
-            val file = backupService.export()
-            val name = LocalDateTime.now().toString() + "-backup.json"
-            return Response.ok(file, MediaType.APPLICATION_OCTET_STREAM)
-                .header("Content-Disposition", "attachment; filename=\"$name\"")
-                .build()
+            val dto = backupService.export()
+            return Response.ok(dto).build()
         }
     }
 
     @Path("/import")
     @POST
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    @Produces(MediaType.APPLICATION_JSON)
-    fun import(@FormDataParam("file") body: FormDataBodyPart, @Auth user: User): Response {
+    fun import(@Auth user: User, backup: PostBackupDto): Response {
         if (!user.isAdmin) {
             throw UnauthorizedException()
         } else {
-            backupService.import(body)
+            backupService.import(backup)
             computationService.compute()
             return Response.ok().build()
         }
@@ -64,13 +58,11 @@ class AdminResource @Inject constructor(
 
     @Path("/invite")
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    fun import(@Auth user: User): Response {
+    fun invite(@Auth user: User): Response {
         if (!user.isAdmin) {
             throw UnauthorizedException()
         } else {
-            val now = LocalDateTime.now()
+            val now = ZonedDateTime.now()
             val invite = InviteData(
                 id = UUID.randomUUID(),
                 code = randomService.createAlphaNumeric(16),
@@ -84,8 +76,6 @@ class AdminResource @Inject constructor(
 
     @Path("/compute")
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
     fun compute(@Auth user: User): Response {
         if (!user.isAdmin) {
             throw UnauthorizedException()

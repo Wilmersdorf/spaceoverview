@@ -1,6 +1,7 @@
 package model.database
 
-import java.time.LocalDateTime
+import com.fasterxml.jackson.annotation.JsonFormat
+import java.time.ZonedDateTime
 import java.util.*
 
 data class UserData(
@@ -8,6 +9,8 @@ data class UserData(
     val email: String,
     val hash: String,
     val isAdmin: Boolean,
-    val created: LocalDateTime,
-    val updated: LocalDateTime
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSX")
+    val created: ZonedDateTime,
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSSSSX")
+    val updated: ZonedDateTime
 )

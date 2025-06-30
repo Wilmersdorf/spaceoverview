@@ -1,7 +1,7 @@
 package model.rest
 
 import model.enums.Field
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 import java.util.*
 
 data class SpaceDto(
@@ -10,7 +10,7 @@ data class SpaceDto(
     val norm: String,
     val description: String,
     val field: Field,
-    val created: LocalDateTime,
-    val updated: LocalDateTime,
+    val created: ZonedDateTime,
+    val updated: ZonedDateTime,
     val references: List<ReferenceDto>
 )

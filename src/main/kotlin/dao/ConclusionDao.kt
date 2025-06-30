@@ -9,14 +9,25 @@ interface ConclusionDao {
 
     @SqlUpdate(
         """
-        INSERT INTO Conclusion (id, theoremId, propertyId, field, created, updated)
-        VALUES (:data.id, :data.theoremId, :data.propertyId, :data.field, :data.created, :data.updated)
+        INSERT INTO Conclusion (
+        id,
+        theoremId,
+        propertyId,
+        field,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.theoremId,
+        :data.propertyId,
+        :data.field,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: ConclusionData)
-
-    @SqlQuery("SELECT * FROM Conclusion WHERE id = :id")
-    fun get(id: UUID): ConclusionData?
 
     @SqlQuery("SELECT * FROM Conclusion WHERE theoremId = :theoremId")
     fun getByTheoremId(theoremId: UUID): List<ConclusionData>
