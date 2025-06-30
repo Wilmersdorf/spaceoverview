@@ -1,27 +1,27 @@
 package filter.response
 
 import com.google.inject.Inject
+import jakarta.annotation.Priority
+import jakarta.ws.rs.container.ContainerRequestContext
+import jakarta.ws.rs.container.ContainerResponseContext
+import jakarta.ws.rs.container.ContainerResponseFilter
 import model.enums.Environment
-import mu.KotlinLogging
 import service.CookieService
 import service.RandomService
-import javax.annotation.Priority
-import javax.ws.rs.container.ContainerRequestContext
-import javax.ws.rs.container.ContainerResponseContext
-import javax.ws.rs.container.ContainerResponseFilter
+import util.Logging
 
 @Priority(900)
 class CsrfResponseFilter @Inject constructor(
-    private val environment: Environment,
     private val cookieService: CookieService,
+    private val environment: Environment,
     private val randomService: RandomService
 ) : ContainerResponseFilter {
 
-    private val logger = KotlinLogging.logger {}
+    private val logger = Logging.logger {}
 
     override fun filter(requestContext: ContainerRequestContext, responseContext: ContainerResponseContext) {
         if (environment == Environment.DEVELOPMENT) {
-            logger.debug("CsrfResponseFilter ${requestContext.uriInfo.requestUri}")
+            logger.debug("CsrfResponseFilter {}", requestContext.uriInfo.requestUri)
         }
 
         val token = randomService.createAlphaNumeric(32)

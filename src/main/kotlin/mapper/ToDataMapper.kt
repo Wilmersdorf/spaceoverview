@@ -6,14 +6,15 @@ import model.database.ReferenceData
 import model.rest.ReferenceDto
 import model.rest.post.PostConclusionDto
 import model.rest.post.PostConditionDto
-import java.time.LocalDateTime
+import util.reduceToNull
+import java.time.ZonedDateTime
 import java.util.*
 
 class ToDataMapper {
 
     fun toConditions(
         theoremId: UUID,
-        time: LocalDateTime,
+        time: ZonedDateTime,
         postConditionDtoList: List<PostConditionDto>
     ): List<ConditionData> {
         return postConditionDtoList.map {
@@ -30,7 +31,7 @@ class ToDataMapper {
 
     fun toConclusions(
         theoremId: UUID,
-        time: LocalDateTime,
+        time: ZonedDateTime,
         postConclusionDtoList: List<PostConclusionDto>
     ): List<ConclusionData> {
         return postConclusionDtoList.map {
@@ -45,28 +46,60 @@ class ToDataMapper {
         }.toList()
     }
 
-    fun toSpaceReferences(spaceId: UUID, time: LocalDateTime, references: List<ReferenceDto>?): List<ReferenceData> {
+    fun toSpaceReferences(spaceId: UUID, time: ZonedDateTime, references: List<ReferenceDto>?): List<ReferenceData> {
         return toReferences(spaceId = spaceId, time = time, references = references)
     }
 
     fun toPropertyReferences(
         propertyId: UUID,
-        time: LocalDateTime,
+        time: ZonedDateTime,
         references: List<ReferenceDto>?
     ): List<ReferenceData> {
         return toReferences(propertyId = propertyId, time = time, references = references)
     }
 
-    fun toLinkReferences(linkId: UUID, time: LocalDateTime, references: List<ReferenceDto>?): List<ReferenceData> {
+    fun toLinkReferences(linkId: UUID, time: ZonedDateTime, references: List<ReferenceDto>?): List<ReferenceData> {
         return toReferences(linkId = linkId, time = time, references = references)
     }
 
     fun toTheoremReferences(
         theoremId: UUID,
-        time: LocalDateTime,
+        time: ZonedDateTime,
         references: List<ReferenceDto>?
     ): List<ReferenceData> {
         return toReferences(theoremId = theoremId, time = time, references = references)
+    }
+
+    fun toDifferentialEquationReferences(
+        differentialEquationId: UUID,
+        time: ZonedDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(differentialEquationId = differentialEquationId, time = time, references = references)
+    }
+
+    fun toDifferentialEquationPropertyReferences(
+        differentialEquationPropertyId: UUID,
+        time: ZonedDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(
+            differentialEquationPropertyId = differentialEquationPropertyId,
+            time = time,
+            references = references
+        )
+    }
+
+    fun toDifferentialEquationLinkReferences(
+        differentialEquationLinkId: UUID,
+        time: ZonedDateTime,
+        references: List<ReferenceDto>?
+    ): List<ReferenceData> {
+        return toReferences(
+            differentialEquationLinkId = differentialEquationLinkId,
+            time = time,
+            references = references
+        )
     }
 
     private fun toReferences(
@@ -74,7 +107,10 @@ class ToDataMapper {
         propertyId: UUID? = null,
         linkId: UUID? = null,
         theoremId: UUID? = null,
-        time: LocalDateTime,
+        differentialEquationId: UUID? = null,
+        differentialEquationPropertyId: UUID? = null,
+        differentialEquationLinkId: UUID? = null,
+        time: ZonedDateTime,
         references: List<ReferenceDto>?
     ): List<ReferenceData> {
         return references.orEmpty().map {
@@ -84,13 +120,16 @@ class ToDataMapper {
                 propertyId = propertyId,
                 linkId = linkId,
                 theoremId = theoremId,
-                url = it.url?.trim(),
-                title = it.title!!.trim(),
-                arxivId = it.arxivId?.trim(),
+                differentialEquationId = differentialEquationId,
+                differentialEquationPropertyId = differentialEquationPropertyId,
+                differentialEquationLinkId = differentialEquationLinkId,
+                url = it.url.reduceToNull(),
+                title = it.title.reduceToNull()!!,
+                arxivId = it.arxivId.reduceToNull(),
                 wikipediaId = it.wikipediaId,
-                bibtex = it.bibtex?.trim(),
+                bibtex = it.bibtex.reduceToNull(),
                 page = it.page,
-                statement = it.statement?.trim(),
+                statement = it.statement.reduceToNull(),
                 created = time,
                 updated = time
             )

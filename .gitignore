@@ -1,5 +1,5 @@
 .gradle/
 .idea/
+.kotlin/
 build/
-src/main/resources/assets/
-cert.p12
+config.yaml

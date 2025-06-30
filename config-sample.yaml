@@ -1,0 +1,22 @@
+logging:
+  level: INFO
+  loggers:
+    "filter": DEBUG
+
+server:
+  rootPath: /api/
+  applicationContextPath: /
+  applicationConnectors:
+    - type: http
+      port: 3000
+
+database:
+  user:
+  password:
+  url: jdbc:postgresql://localhost/postgresdb
+
+environment: DEVELOPMENT
+
+jwtSecret:
+
+serverUrl: http://localhost:3000

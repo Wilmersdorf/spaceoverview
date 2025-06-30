@@ -9,8 +9,22 @@ interface UserDao {
 
     @SqlUpdate(
         """
-        INSERT INTO UserData (id, email, hash, isAdmin, created, updated)
-        VALUES (:data.id, :data.email, :data.hash, :data.isAdmin, :data.created, :data.updated)
+        INSERT INTO UserData (
+        id,
+        email,
+        hash,
+        isAdmin,
+        created,
+        updated
+        )
+        VALUES (
+        :data.id,
+        :data.email,
+        :data.hash,
+        :data.isAdmin,
+        :data.created,
+        :data.updated
+        )
     """
     )
     fun create(data: UserData)

@@ -1,13 +1,11 @@
 package config
 
-import io.dropwizard.Configuration
-import io.dropwizard.db.DataSourceFactory
+import io.dropwizard.core.Configuration
 import model.enums.Environment
 
 class SpaceConfiguration(
-    val database: DataSourceFactory = DataSourceFactory(),
+    val database: DatabaseConfig? = null,
     val environment: Environment? = null,
     val jwtSecret: String? = null,
     val serverUrl: String? = null,
-    val httpsRedirect: Boolean = true
 ) : Configuration()

@@ -37,6 +37,23 @@ class ToDtoMapper {
             spaceId = link.spaceId,
             propertyId = link.propertyId,
             field = link.field,
+            description = link.description,
+            created = link.created,
+            updated = link.created,
+            references = toReferenceDtoList(references)
+        )
+    }
+
+    fun toDifferentialEquationLinkDto(
+        link: DifferentialEquationLinkData,
+        references: List<ReferenceData>
+    ): DifferentialEquationLinkDto {
+        return DifferentialEquationLinkDto(
+            id = link.id,
+            differentialEquationId = link.differentialEquationId,
+            differentialEquationPropertyId = link.differentialEquationPropertyId,
+            hasProperty = link.hasProperty,
+            description = link.description,
             created = link.created,
             updated = link.created,
             references = toReferenceDtoList(references)
@@ -69,10 +86,42 @@ class ToDtoMapper {
         return TheoremDto(
             id = theorem.id,
             name = theorem.name,
+            description = theorem.description,
             created = theorem.created,
             updated = theorem.updated,
             conditions = conditionDtoList,
             conclusions = conclusionDtoList,
+            references = toReferenceDtoList(references)
+        )
+    }
+
+    fun toDifferentialEquationDto(
+        differentialEquation: DifferentialEquationData,
+        references: List<ReferenceData>
+    ): DifferentialEquationDto {
+        return DifferentialEquationDto(
+            id = differentialEquation.id,
+            name = differentialEquation.name,
+            symbol = differentialEquation.symbol,
+            description = differentialEquation.description,
+            variables = differentialEquation.variables,
+            parameters = differentialEquation.parameters,
+            created = differentialEquation.created,
+            updated = differentialEquation.updated,
+            references = toReferenceDtoList(references)
+        )
+    }
+
+    fun toDifferentialEquationPropertyDto(
+        differentialEquationPropertyData: DifferentialEquationPropertyData,
+        references: List<ReferenceData>
+    ): DifferentialEquationPropertyDto {
+        return DifferentialEquationPropertyDto(
+            id = differentialEquationPropertyData.id,
+            name = differentialEquationPropertyData.name,
+            description = differentialEquationPropertyData.description,
+            created = differentialEquationPropertyData.created,
+            updated = differentialEquationPropertyData.updated,
             references = toReferenceDtoList(references)
         )
     }

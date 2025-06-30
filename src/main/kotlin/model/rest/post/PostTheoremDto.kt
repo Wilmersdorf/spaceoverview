@@ -4,6 +4,7 @@ import model.rest.ReferenceDto
 
 data class PostTheoremDto(
     val name: String?,
+    val description: String?,
     val conditions: List<PostConditionDto>,
     val conclusions: List<PostConclusionDto>,
     val references: List<ReferenceDto>?

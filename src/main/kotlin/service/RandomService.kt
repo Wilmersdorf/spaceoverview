@@ -4,7 +4,7 @@ import java.security.SecureRandom
 
 class RandomService {
 
-    private val characters: List<Char> = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+    private val characters = ('a'..'z') + ('A'..'Z') + ('0'..'9')
     private val secureRandom = SecureRandom()
 
     fun createAlphaNumeric(length: Int): String {

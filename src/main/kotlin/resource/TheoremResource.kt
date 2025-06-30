@@ -2,42 +2,40 @@ package resource
 
 import com.google.inject.Inject
 import dao.*
-import extensions.reduceToNull
+import exception.JsonException
 import io.dropwizard.auth.Auth
+import jakarta.ws.rs.*
+import jakarta.ws.rs.core.MediaType
+import jakarta.ws.rs.core.Response
 import mapper.ToDataMapper
 import mapper.ToDtoMapper
 import model.User
 import model.database.TheoremData
 import model.enums.Field
 import model.enums.FieldLink
-import model.rest.ErrorDto
 import model.rest.post.PostConclusionDto
 import model.rest.post.PostConditionDto
 import model.rest.post.PostTheoremDto
 import service.ComputationService
 import service.ValidationService
-import java.time.LocalDateTime
+import util.reduceToNull
+import java.time.ZonedDateTime
 import java.util.*
-import javax.ws.rs.*
-import javax.ws.rs.core.MediaType
-import javax.ws.rs.core.Response
-import javax.ws.rs.core.Response.Status.NOT_FOUND
-import kotlin.collections.HashMap
 
 @Path("/theorem")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 class TheoremResource @Inject constructor(
-    private val validationService: ValidationService,
-    private val theoremDao: TheoremDao,
-    private val conditionDao: ConditionDao,
+    private val computationDao: ComputationDao,
+    private val computationService: ComputationService,
     private val conclusionDao: ConclusionDao,
+    private val conditionDao: ConditionDao,
     private val propertyDao: PropertyDao,
     private val referenceDao: ReferenceDao,
+    private val theoremDao: TheoremDao,
     private val toDataMapper: ToDataMapper,
     private val toDtoMapper: ToDtoMapper,
-    private val computationDao: ComputationDao,
-    private val computationService: ComputationService
+    private val validationService: ValidationService
 ) {
 
     private val allowedFields = mapOf(
@@ -56,7 +54,7 @@ class TheoremResource @Inject constructor(
     @GET
     fun get(@QueryParam("propertyId") propertyId: UUID?): Response {
         if (propertyId != null && propertyDao.get(propertyId) == null) {
-            return Response.status(NOT_FOUND).build()
+            throw NotFoundException()
         } else {
             val theorems = theoremDao.getAll()
             val conditions = conditionDao.getAll().groupBy { it.theoremId }
@@ -85,7 +83,7 @@ class TheoremResource @Inject constructor(
     fun getTheorem(@PathParam("id") id: UUID): Response {
         val theorem = theoremDao.get(id)
         if (theorem == null) {
-            return Response.status(NOT_FOUND).build()
+            throw NotFoundException()
         } else {
             val conditions = conditionDao.getByTheoremId(id)
             val conclusions = conclusionDao.getByTheoremId(id)
@@ -103,66 +101,63 @@ class TheoremResource @Inject constructor(
     }
 
     @POST
-    fun add(postTheoremDto: PostTheoremDto, @Auth user: User): Response {
+    fun add(@Auth user: User, postTheoremDto: PostTheoremDto): Response {
         val errors = validate(postTheoremDto)
-        return if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+        if (errors.isNotEmpty()) {
+            throw JsonException(errors)
         } else {
-            val now = LocalDateTime.now()
+            val now = ZonedDateTime.now()
             val theorem = TheoremData(
                 id = UUID.randomUUID(),
                 name = postTheoremDto.name.reduceToNull(),
+                description = postTheoremDto.description.reduceToNull(),
                 created = now,
                 updated = now
             )
             try {
                 theoremDao.create(theorem)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("name" to "A theorem with this name already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "name",
+                    value = "A theorem with this name already exists."
+                )
             }
             val conditions = toDataMapper.toConditions(theorem.id, now, postTheoremDto.conditions)
             conditions.forEach(conditionDao::create)
             val conclusions = toDataMapper.toConclusions(theorem.id, now, postTheoremDto.conclusions)
             conclusions.forEach(conclusionDao::create)
-            val references =
-                toDataMapper.toTheoremReferences(
-                    theoremId = theorem.id,
-                    time = now,
-                    references = postTheoremDto.references
-                )
+            val references = toDataMapper.toTheoremReferences(theorem.id, now, postTheoremDto.references)
             references.forEach(referenceDao::create)
             val properties = propertyDao.getAll().associateBy { it.id }
             val theoremDto = toDtoMapper.toTheoremDto(theorem, conditions, conclusions, references, properties)
             computationService.compute()
-            Response.ok(theoremDto).build()
+            return Response.ok(theoremDto).build()
         }
     }
 
     @Path("/{id}")
     @POST
-    fun update(
-        @PathParam("id") id: UUID,
-        postTheoremDto: PostTheoremDto,
-        @Auth user: User
-    ): Response {
+    fun update(@Auth user: User, @PathParam("id") id: UUID, postTheoremDto: PostTheoremDto): Response {
         val theorem = theoremDao.get(id)
         val errors = validate(postTheoremDto)
-        return if (theorem == null) {
-            return Response.status(NOT_FOUND).build()
+        if (theorem == null) {
+            throw NotFoundException()
         } else if (errors.isNotEmpty()) {
-            Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(errors)).build()
+            throw JsonException(errors)
         } else {
-            val now = LocalDateTime.now()
-            val theoremUpdate = theorem.copy(
+            val now = ZonedDateTime.now()
+            val update = theorem.copy(
                 name = postTheoremDto.name.reduceToNull(),
+                description = postTheoremDto.description.reduceToNull(),
                 updated = now
             )
             try {
-                theoremDao.update(theoremUpdate)
+                theoremDao.update(update)
             } catch (exception: Exception) {
-                val duplicateError = mapOf("name" to "Another theorem with this name already exists.")
-                return Response.status(Response.Status.BAD_REQUEST).entity(ErrorDto(duplicateError)).build()
+                throw JsonException(
+                    key = "name",
+                    value = "Another theorem with this name already exists."
+                )
             }
             conditionDao.deleteByTheoremId(id)
             val conditions = toDataMapper.toConditions(theorem.id, now, postTheoremDto.conditions)
@@ -174,18 +169,18 @@ class TheoremResource @Inject constructor(
             val references = toDataMapper.toTheoremReferences(id, now, postTheoremDto.references)
             references.forEach(referenceDao::create)
             val properties = propertyDao.getAll().associateBy { it.id }
-            val theoremDto = toDtoMapper.toTheoremDto(theoremUpdate, conditions, conclusions, references, properties)
+            val theoremDto = toDtoMapper.toTheoremDto(update, conditions, conclusions, references, properties)
             computationService.compute()
-            Response.ok(theoremDto).build()
+            return Response.ok(theoremDto).build()
         }
     }
 
     @Path("/{id}")
     @DELETE
-    fun delete(@PathParam("id") id: UUID, @Auth user: User): Response {
+    fun delete(@Auth user: User, @PathParam("id") id: UUID): Response {
         val theorem = theoremDao.get(id)
-        return if (theorem == null) {
-            return Response.status(NOT_FOUND).build()
+        if (theorem == null) {
+            throw NotFoundException()
         } else {
             computationDao.deleteByTheoremId(id)
             conditionDao.deleteByTheoremId(id)
@@ -193,19 +188,30 @@ class TheoremResource @Inject constructor(
             referenceDao.deleteByTheoremId(id)
             theoremDao.delete(id)
             computationService.compute()
-            Response.ok().build()
+            return Response.ok().build()
         }
     }
 
     private fun validate(postTheoremDto: PostTheoremDto): Map<String, String> {
         val errors = HashMap<String, String>()
         errors.putAll(validationService.validateIfNotBlank(postTheoremDto.name, "name", 128))
+        errors.putAll(validationService.validateIfNotBlank(postTheoremDto.description, "description", 1024))
         errors.putAll(validationService.validateReferences(postTheoremDto.references))
         postTheoremDto.conditions.forEachIndexed { index, postConditionDto ->
             errors.putAll(validateCondition(index, postConditionDto))
         }
         postTheoremDto.conclusions.forEachIndexed { index, postConclusionDto ->
             errors.putAll(validateConclusion(index, postConclusionDto))
+        }
+        if (postTheoremDto.conditions.isEmpty()) {
+            errors["general"] = "Conditions cannot be empty."
+        } else if (postTheoremDto.conditions.size > 5) {
+            errors["general"] = "Too many conditions."
+        }
+        if (postTheoremDto.conclusions.isEmpty()) {
+            errors["general"] = "Conclusions cannot be empty."
+        } else if (postTheoremDto.conclusions.size > 5) {
+            errors["general"] = "Too many conclusions"
         }
         return errors
     }
