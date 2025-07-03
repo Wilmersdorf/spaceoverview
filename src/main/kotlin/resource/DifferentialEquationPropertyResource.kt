@@ -167,8 +167,8 @@ class DifferentialEquationPropertyResource @Inject constructor(
 
     private fun validate(postDto: PostDifferentialEquationPropertyDto): Map<String, String> {
         val errors = HashMap<String, String>()
-        errors.putAll(validationService.validate(postDto.name, "name", 128))
-        errors.putAll(validationService.validate(postDto.description, "description", 1024))
+        errors.putAll(validationService.validate(postDto.name, "name", 128, false))
+        errors.putAll(validationService.validate(postDto.description, "description", 1024, true))
         errors.putAll(validationService.validateReferences(postDto.references))
         return errors
     }

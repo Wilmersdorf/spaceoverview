@@ -194,8 +194,8 @@ class TheoremResource @Inject constructor(
 
     private fun validate(postTheoremDto: PostTheoremDto): Map<String, String> {
         val errors = HashMap<String, String>()
-        errors.putAll(validationService.validateIfNotBlank(postTheoremDto.name, "name", 128))
-        errors.putAll(validationService.validateIfNotBlank(postTheoremDto.description, "description", 1024))
+        errors.putAll(validationService.validateIfNotBlank(postTheoremDto.name, "name", 128, false))
+        errors.putAll(validationService.validateIfNotBlank(postTheoremDto.description, "description", 1024, true))
         errors.putAll(validationService.validateReferences(postTheoremDto.references))
         postTheoremDto.conditions.forEachIndexed { index, postConditionDto ->
             errors.putAll(validateCondition(index, postConditionDto))

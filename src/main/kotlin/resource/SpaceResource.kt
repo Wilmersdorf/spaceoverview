@@ -319,9 +319,9 @@ class SpaceResource @Inject constructor(
 
     private fun validate(postSpaceDto: PostSpaceDto): Map<String, String> {
         val errors = HashMap<String, String>()
-        errors.putAll(validationService.validate(postSpaceDto.description, "description", 1024))
-        errors.putAll(validationService.validate(postSpaceDto.norm, "norm", 128))
-        errors.putAll(validationService.validate(postSpaceDto.symbol, "symbol", 128))
+        errors.putAll(validationService.validate(postSpaceDto.description, "description", 1024, true))
+        errors.putAll(validationService.validate(postSpaceDto.norm, "norm", 128, true))
+        errors.putAll(validationService.validate(postSpaceDto.symbol, "symbol", 128, false))
         errors.putAll(validationService.validateReferences(postSpaceDto.references))
         return errors
     }
@@ -335,7 +335,8 @@ class SpaceResource @Inject constructor(
             validationService.validateIfNotBlank(
                 postLinkDto.description,
                 "description",
-                1024
+                1024,
+                true
             )
         )
         errors.putAll(validationService.validateReferences(postLinkDto.references))

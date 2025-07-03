@@ -280,11 +280,11 @@ class DifferentialEquationResource @Inject constructor(
 
     private fun validate(postDto: PostDifferentialEquationDto): Map<String, String> {
         val errors = HashMap<String, String>()
-        errors.putAll(validationService.validate(postDto.name, "name", 128))
-        errors.putAll(validationService.validate(postDto.symbol, "symbol", 128))
-        errors.putAll(validationService.validate(postDto.description, "description", 1024))
-        errors.putAll(validationService.validate(postDto.variables, "variables", 128))
-        errors.putAll(validationService.validate(postDto.parameters, "parameters", 128))
+        errors.putAll(validationService.validate(postDto.name, "name", 128, false))
+        errors.putAll(validationService.validate(postDto.symbol, "symbol", 1024, true))
+        errors.putAll(validationService.validate(postDto.description, "description", 1024, true))
+        errors.putAll(validationService.validate(postDto.variables, "variables", 1024, true))
+        errors.putAll(validationService.validate(postDto.parameters, "parameters", 1024, true))
         errors.putAll(validationService.validateReferences(postDto.references))
         return errors
     }
@@ -298,7 +298,8 @@ class DifferentialEquationResource @Inject constructor(
             validationService.validateIfNotBlank(
                 postDifferentialEquationLinkDto.description,
                 "description",
-                1024
+                1024,
+                true
             )
         )
         errors.putAll(validationService.validateReferences(postDifferentialEquationLinkDto.references))

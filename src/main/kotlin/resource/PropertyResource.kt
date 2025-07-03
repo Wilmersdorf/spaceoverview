@@ -176,8 +176,8 @@ class PropertyResource @Inject constructor(
 
     private fun validate(postPropertyDto: PostPropertyDto): Map<String, String> {
         val errors = HashMap<String, String>()
-        errors.putAll(validationService.validate(postPropertyDto.description, "description", 1024))
-        errors.putAll(validationService.validate(postPropertyDto.name, "name", 128))
+        errors.putAll(validationService.validate(postPropertyDto.description, "description", 1024, true))
+        errors.putAll(validationService.validate(postPropertyDto.name, "name", 128, false))
         errors.putAll(validationService.validateReferences(postPropertyDto.references))
         return errors
     }

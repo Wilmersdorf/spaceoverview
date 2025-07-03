@@ -5,24 +5,29 @@ import org.apache.commons.lang3.StringUtils.isBlank
 import org.apache.commons.lang3.StringUtils.isNotBlank
 import org.apache.commons.validator.routines.UrlValidator
 import util.reduceToNull
+import java.util.*
 
 class ValidationService {
 
-    fun validateIfNotBlank(str: String?, name: String, maxLength: Int): Map<String, String> {
+    fun validateIfNotBlank(str: String?, name: String, maxLength: Int, display: Boolean): Map<String, String> {
         return if (isBlank(str)) {
             emptyMap()
         } else if (str!!.length > maxLength) {
             mapOf(name to "Please enter a $name with at most $maxLength characters or leave empty.")
+        } else if (!display && str.contains("$$")) {
+            mapOf(name to "${capitalize(name)} can contain $ .. $ but not $$ .. $$")
         } else {
             emptyMap()
         }
     }
 
-    fun validate(str: String?, name: String, maxLength: Int): Map<String, String> {
+    fun validate(str: String?, name: String, maxLength: Int, display: Boolean): Map<String, String> {
         return if (isBlank(str)) {
             mapOf(name to "Please enter a $name.")
         } else if (str!!.length > maxLength) {
             mapOf(name to "Please enter a $name with at most $maxLength characters.")
+        } else if (!display && str.contains("$$")) {
+            mapOf(name to "${capitalize(name)} can contain $ .. $ but not $$ .. $$")
         } else {
             emptyMap()
         }
@@ -77,6 +82,10 @@ class ValidationService {
             errors["reference[10]"] = "Too many references."
         }
         return errors
+    }
+
+    private fun capitalize(str: String): String {
+        return str.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString() }
     }
 
 }
